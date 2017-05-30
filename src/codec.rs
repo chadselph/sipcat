@@ -6,9 +6,8 @@ use std::net::SocketAddr;
 use std::str;
 use std::vec::Vec;
 
-use tokio_core::net::{UdpSocket, UdpCodec};
-use tokio_core::reactor::Core;
-use protocol::{SipMessage, SipMethod};
+use tokio_core::net::UdpCodec;
+use protocol::SipMessage;
 use parser::{parse_message, write_sip_message};
 use nom::IResult;
 
@@ -35,8 +34,8 @@ impl UdpCodec for UdpSip {
     }
 
     fn encode(&mut self, (addr, msg): Self::Out, into: &mut Vec<u8>) -> SocketAddr {
-        let mut bytes = write_sip_message(msg);
-        into.append(&mut bytes);
+        let bytes = write_sip_message(msg);
+        into.extend(bytes);
         addr
     }
 }

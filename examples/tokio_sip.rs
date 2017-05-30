@@ -4,17 +4,12 @@ extern crate tokio_proto;
 extern crate nom;
 extern crate sipcat;
 
-use std::io;
-use std::net::SocketAddr;
 use std::str;
-use std::vec::Vec;
 
 use futures::{Stream, Sink};
-use tokio_core::net::{UdpSocket, UdpCodec};
+use tokio_core::net::UdpSocket;
 use tokio_core::reactor::Core;
 use sipcat::protocol::{SipMessage, SipMethod};
-use sipcat::parser::{parse_message, write_sip_message};
-use nom::IResult;
 use sipcat::codec::UdpSip;
 
 

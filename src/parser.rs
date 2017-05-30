@@ -113,6 +113,7 @@ named!(parse_header<&[u8], SipHeader>,
 /// hoping to learn how to do this more efficiently.
 /// Once my SIP objects are just wrapping &[u8]s it should be
 /// a lot nicer!
+#[allow(unused_must_use)]
 pub fn write_sip_message(m: SipMessage<String>) -> Vec<u8> {
     // TODO: how do I write an object to bytes the proper way? Also, would like less duplication.
     match m {
@@ -181,7 +182,6 @@ mod tests {
         assert_eq!(parse_result.unwrap().1, expected);
     }
 
-    use parser::*;
     use protocol::*;
 
     #[test]
@@ -216,14 +216,6 @@ a=rtpmap:0 PCMU/8000
 a=rtpmap:8 PCMA/8000
 m=video 0 RTP/AVP 31
 a=rtpmap:31 H261/90000";
-
-        let sip_example2 = b"INVITE sip:bob@biloxi.com SIP/2.0
-Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKkjshdyff
-To: Bob <sip:bob@biloxi.com>
-From: Alice <sip:alice@atlanta.com>;tag=88sja8x
-Max-Forwards: 70
-Call-ID: 987asjd97y7atg
-CSeq: 986759 INVITE";
 
         println!("{:?}", parse_request(sip_example1));
         parse_request(sip_example1).unwrap();
