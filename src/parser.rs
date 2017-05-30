@@ -3,69 +3,10 @@ extern crate nom;
 use std::str;
 use nom::{line_ending, not_line_ending, rest};
 use std::io::Write;
-use std::fmt;
 
-#[derive(Debug, PartialEq)]
-pub enum SipMethod {
-    Invite,
-    Ack,
-    Bye,
-    Cancel,
-    Register,
-    Options,
-    Prack,
-    Subscribe,
-    Notify,
-    Publish,
-    Info,
-    Refer,
-    Message,
-    Update,
-}
 
-impl fmt::Display for SipMethod {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let capitalized = format!("{:?}", *self).to_uppercase();
-        write!(f, "{}", capitalized)
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum SipHeader {
-    Allow(String),
-    CallID(String),
-    Concact(String),
-    CSeq(String),
-    From(String),
-    MaxForwards(u8),
-    Route(String),
-    To(String),
-    UserAgent(String),
-    Via(String),
-    // there's too many of these...
-    Header(String, String),
-}
-
-#[derive(Debug, PartialEq)]
-pub enum SipMessage<T> {
-    SipRequest {
-        method: SipMethod,
-        // TODO: make this a &str after I understand lifetimes
-        request_uri: String,
-        headers: Vec<SipHeader>,
-        body: T,
-    },
-    SipResponse {
-        status_code: u16,
-        reason_phrase: String,
-        headers: Vec<SipHeader>,
-    },
-    // Not sure about the names of these
-    ClientKeepAlive,
-    ServerKeepAlive,
-}
-
-use self::SipMethod::*;
+use protocol::{SipMethod, SipHeader, SipMessage};
+use protocol::SipMethod::*;
 
 named!(parse_method<&[u8], SipMethod>, alt!(
     map!(tag!("INVITE"), { |_| Invite }) |
@@ -167,7 +108,7 @@ named!(parse_header<&[u8], SipHeader>,
     (SipHeader::Header(name.into(), value.into()))
 ));
 
-/// more of a serializer than a parser
+/// more of a serializer than a parser, shouldn't be in this module probably
 /// but this is just where it lives for now.
 /// hoping to learn how to do this more efficiently.
 /// Once my SIP objects are just wrapping &[u8]s it should be
@@ -241,6 +182,7 @@ mod tests {
     }
 
     use parser::*;
+    use protocol::*;
 
     #[test]
     fn test_parse_headers() {
