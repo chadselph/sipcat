@@ -1,0 +1,16 @@
+[package]
+name = "sipcat"
+version = "0.1.0"
+authors = ["Chad Selph <chad.selph@gmail.com>"]
+
+[dependencies]
+log = "0.3"
+futures = "0.1"
+tokio-core = "0.1"
+tokio-proto = "0.1"
+env_logger = "0.3"
+trust-dns = { version = "0.9.2", default-features = false }
+
+[dependencies.nom]
+version = "^3.0"
+features = ["verbose-errors"]
