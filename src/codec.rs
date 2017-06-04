@@ -34,7 +34,7 @@ impl UdpCodec for UdpSip {
     }
 
     fn encode(&mut self, (addr, msg): Self::Out, into: &mut Vec<u8>) -> SocketAddr {
-        let bytes = write_sip_message(msg);
+        let bytes = write_sip_message(&msg);
         into.extend(bytes);
         addr
     }

@@ -112,48 +112,37 @@ named!(parse_header<&[u8], SipHeader>,
 /// but this is just where it lives for now.
 /// hoping to learn how to do this more efficiently.
 /// Once my SIP objects are just wrapping &[u8]s it should be
-/// a lot nicer!
+/// a lot nicer! (or maybe not...)
 #[allow(unused_must_use)]
-pub fn write_sip_message(m: SipMessage<String>) -> Vec<u8> {
+pub fn write_sip_message(m: &SipMessage<String>) -> Vec<u8> {
     // TODO: how do I write an object to bytes the proper way? Also, would like less duplication.
     match m {
-        SipMessage::SipRequest { method, request_uri, headers, body } => {
+        &SipMessage::SipRequest { ref method, ref request_uri, ref headers, ref body } => {
 
             let mut vec: Vec<u8> = Vec::new();
-            vec.write(&format!("{}", method).into_bytes());
-            vec.push(0x20u8);
-            vec.write(&request_uri.into_bytes());
-            vec.write(b"\r\n");
+            vec.write(&format!("{} {} SIP/2.0\r\n", method, request_uri).into_bytes());
             for h in headers {
                 match h {
-                    SipHeader::Header(name, value) => {
-                        vec.write(&name.into_bytes());
-                        vec.write(b": ");
-                        vec.write(&value.into_bytes());
-                        vec.write(b"\r\n");
+                    &SipHeader::StaticHeader(ref name, ref value) => {
+                        vec.write(&format!("{}: {}\r\n", name, value).into_bytes());
                         ()
                     }
                     _ => (),
                 }
             }
             vec.write(b"\r\n");
-            vec.write(&body.into_bytes());
+            vec.write(&format!("{}", body).into_bytes());
             vec
         }
 
-        SipMessage::SipResponse { status_code, reason_phrase, headers } => {
+        &SipMessage::SipResponse { ref status_code, ref reason_phrase, ref headers } => {
             let mut vec: Vec<u8> = Vec::new();
-            vec.write(b"SIP/2.0 ");
-            vec.write(&format!("{}", status_code).into_bytes());
-            vec.write(&reason_phrase.into_bytes());
+            vec.write(&format!("SIP/2.0 {} {}", status_code, reason_phrase).into_bytes());
             vec.write(b"\r\n");
             for h in headers {
                 match h {
-                    SipHeader::Header(name, value) => {
-                        vec.write(&name.into_bytes());
-                        vec.write(b": ");
-                        vec.write(&value.into_bytes());
-                        vec.write(b"\r\n");
+                    &SipHeader::Header(ref name, ref value) => {
+                        vec.write(&format!("{}: {}\r\n", name, value).into_bytes());
                         ()
                     }
                     _ => (),
@@ -163,8 +152,8 @@ pub fn write_sip_message(m: SipMessage<String>) -> Vec<u8> {
             // TODO: body
             vec
         }
-        SipMessage::ClientKeepAlive => vec![13, 10, 13, 10],
-        SipMessage::ServerKeepAlive => vec![13, 10],
+        &SipMessage::ClientKeepAlive => vec![13, 10, 13, 10],
+        &SipMessage::ServerKeepAlive => vec![13, 10],
     }
 }
 
