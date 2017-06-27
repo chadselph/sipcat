@@ -26,7 +26,7 @@ impl fmt::Display for SipMethod {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum SipHeader {
     /*
     Allow(String),
@@ -45,6 +45,22 @@ pub enum SipHeader {
     StaticHeader(&'static str, String),
 }
 
+impl SipHeader {
+    pub fn name(&self) -> &str {
+        match self {
+            &SipHeader::Header(ref name, _) => name,
+            &SipHeader::StaticHeader(ref s, _) => s
+        }
+    }
+    pub fn value(&self) -> &str {
+        match self {
+            &SipHeader::Header(_, ref v) => v,
+            &SipHeader::StaticHeader(_, ref v) => v
+        }
+
+    }
+}
+
 pub trait SipUri {
     fn value(self) -> String;
 }
@@ -55,14 +71,18 @@ impl SipUri for String {
     }
 }
 
+impl<'a> SipUri for &'a str {
+    fn value(self) -> String {
+        self.to_owned()
+    }
+}
+
 pub trait SipMessageBody {
     fn length(&self) -> u32;
     fn content_type() -> &'static str;
     fn headers(&self) -> Vec<SipHeader> {
-        vec![
-            SipHeader::ContentType(Self::content_type().into()),
-            SipHeader::ContentLength(self.length())
-        ]
+        vec![SipHeader::ContentType(Self::content_type().into()),
+             SipHeader::ContentLength(self.length())]
     }
 }
 
@@ -119,6 +139,27 @@ impl SipHeader {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct StatusCode(u16);
+
+impl StatusCode {
+    pub fn is_final(&self) -> bool {
+        self.0 > 199
+    }
+}
+
+impl fmt::Display for StatusCode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Into<StatusCode> for u16 {
+    fn into(self) -> StatusCode {
+        StatusCode(self)
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub enum SipMessage<T> {
     SipRequest {
         method: SipMethod,
@@ -128,9 +169,10 @@ pub enum SipMessage<T> {
         body: T,
     },
     SipResponse {
-        status_code: u16,
+        status_code: StatusCode,
         reason_phrase: String,
         headers: Vec<SipHeader>,
+        body: T,
     },
     // Not sure about the names of these
     ClientKeepAlive,
@@ -146,24 +188,41 @@ impl<A: SipMessageBody> SipMessage<A> {
                                               body: A)
                                               -> SipMessage<A> {
         let call_id = format!("{}", Uuid::new_v4());
-        let mut headers = vec![
-             SipHeader::Via("SIP/2.0/UDP 184.23.0.7:15060;rport;branch=1234".into()),
-             SipHeader::MaxForwards(70),
-             SipHeader::From(from),
-            SipHeader::To(to),
-             SipHeader::Contact(contact),
-             SipHeader::CallID(call_id),
-             SipHeader::CSeq("12345 INVITE".into()),
-             SipHeader::Allow("ACK INVITE REGISTER BYE OPTIONS".into()),
-             SipHeader::UserAgent("sipcat 0.0".into()),
-             ];
+        let mut headers = vec![SipHeader::Via("SIP/2.0/UDP 184.23.0.6:15060;rport;branch=1234"
+                                   .into()),
+                               SipHeader::MaxForwards(70),
+                               SipHeader::From(from),
+                               SipHeader::To(to),
+                               SipHeader::Contact(contact),
+                               SipHeader::CallID(call_id),
+                               SipHeader::CSeq("12345 INVITE".into()),
+                               SipHeader::Allow("ACK INVITE REGISTER BYE OPTIONS".into()),
+                               SipHeader::UserAgent("sipcat 0.0".into())];
         let body_headers = body.headers();
         headers.extend(body_headers);
-             SipMessage::SipRequest {
-                 method: SipMethod::Invite,
-                 body: body,
-                 headers: headers,
-                 request_uri: request_uri.value()
-             }
+        SipMessage::SipRequest {
+            method: SipMethod::Invite,
+            body: body,
+            headers: headers,
+            request_uri: request_uri.value(),
+        }
+    }
+
+    pub fn header(&self, name: String) -> Option<&SipHeader> {
+      match self {
+          &SipMessage::SipRequest { ref headers, .. } =>
+            headers.iter().find(|h| h.name() == name),
+          &SipMessage::SipResponse { ref headers, .. } =>
+            headers.iter().find(|h| {h.name() == name}),
+            _ =>
+            Option::None
+      }
+    }
+
+    pub fn is_final(&self) -> bool {
+      match self {
+          &SipMessage::SipResponse { ref status_code , .. } => status_code.is_final(),
+          _ => false
+      }
     }
 }

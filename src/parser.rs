@@ -83,11 +83,13 @@ named!(parse_response<&[u8], SipMessage<String> >,
         reason: parse_reason_phrase >>
         line_ending >>
         headers: separated_nonempty_list!(line_ending, parse_header) >>
+        body: map_res!(rest, str::from_utf8) >>
         (
             SipMessage::SipResponse {
-                status_code: code,
+                status_code: code.into(),
                 reason_phrase: reason.into(),
-                headers: headers
+                headers: headers,
+                body: body.into()
             }
         )
     )
@@ -122,20 +124,14 @@ pub fn write_sip_message(m: &SipMessage<String>) -> Vec<u8> {
             let mut vec: Vec<u8> = Vec::new();
             vec.write(&format!("{} {} SIP/2.0\r\n", method, request_uri).into_bytes());
             for h in headers {
-                match h {
-                    &SipHeader::StaticHeader(ref name, ref value) => {
-                        vec.write(&format!("{}: {}\r\n", name, value).into_bytes());
-                        ()
-                    }
-                    _ => (),
-                }
+                vec.write(&format!("{}: {}\r\n", h.name(), h.value()).into_bytes());
             }
             vec.write(b"\r\n");
             vec.write(&format!("{}", body).into_bytes());
             vec
         }
 
-        &SipMessage::SipResponse { ref status_code, ref reason_phrase, ref headers } => {
+        &SipMessage::SipResponse { ref status_code, ref reason_phrase, ref headers, ref body } => {
             let mut vec: Vec<u8> = Vec::new();
             vec.write(&format!("SIP/2.0 {} {}", status_code, reason_phrase).into_bytes());
             vec.write(b"\r\n");
@@ -149,7 +145,7 @@ pub fn write_sip_message(m: &SipMessage<String>) -> Vec<u8> {
                 }
             }
             vec.write(b"\r\n");
-            // TODO: body
+            vec.write(&format!("{}", body).into_bytes());
             vec
         }
         &SipMessage::ClientKeepAlive => vec![13, 10, 13, 10],
@@ -262,7 +258,7 @@ Content-Type: application/sdp
         }
         assert_parsed_equal(parse_response(resp),
                             SipMessage::SipResponse {
-                                status_code: 200,
+                                status_code: StatusCode(200),
                                 reason_phrase: "OK".into(),
                                 headers: vec![
                 h("Via", "SIP/2.0/UDP site4.server2.com;branch=z9hG4bKnashds8;received=192.0.2.3"),
@@ -273,6 +269,7 @@ Content-Type: application/sdp
                 h("Contact", "<sip:user2@192.0.2.4>"),
                 h("Content-Type", "application/sdp")
                 ],
+                                body: "".into(),
                             })
 
     }
